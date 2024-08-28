@@ -1,0 +1,176 @@
+#!/bin/bash
+#--------------------------------------
+#
+#               EvaluateJUnitXml
+#
+#               Author: elukpot
+#
+#               Date: 22/Apr/13
+#
+#--------------------------------------
+#               Version: 4.1
+#--------------------------------------
+#
+#               Description:
+#                       A script to examine a XML file from jUnit and output a
+#                       bar with green and red +'s to denote passes and fails
+#                       respectively.
+#                       The script also outputs statistics relating to the
+#                       number of passes and fails.
+#                       The script outputs the names of the failing test cases.
+#                       The messages from the failing tests are outputted too.
+#
+#--------------------------------------
+
+# ----- Exit Codes -----
+SUCCESS=0
+BAD_ARGS=1
+
+# ----- Variables -----
+xmlfile=0
+testcase_text='<testcase'
+failure_text='<failure'
+total_tests=0
+failing_tests=0
+passing_tests=0
+pass_decimal=0
+pass_percentage=0
+display_bar_width=50
+
+# Text colour variables
+txtbld=$(tput bold)           # Bold
+fail=${txtbld}$(tput setaf 1) # Red for fail
+pass=${txtbld}$(tput setaf 2) # Green for pass
+info=${txtbld}$(tput setaf 4) # Blue for info
+txtrst=$(tput sgr0)           # Reset
+
+# ----- Functions -----
+# Error Function that writes to STDERR
+function err {
+	
+	echo -e "[ ERROR ] [$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+}
+
+# Extract the test name from the line above the failing test
+function extract_test_name {
+	
+	local raw_output=$(echo $@ | awk '{print $NF}')
+	local raw_output_length=$(echo $raw_output | awk '{print length}')
+
+	# Start at 7th position, take away 6 starting chars and 2 trailing chars from length.
+	local test_name=$(echo $raw_output | awk '{print substr($1,7,length($1)-8)}')
+	
+	echo -e "   $test_name:"
+}
+
+# Extract the message from the failing test case.
+function extract_failing_test_message {
+
+	local failure_message=$(echo $@ | awk '{$2=$1=""; print $0}')
+	
+	# Subtract 5 from the length, 3 chars at the end ""/>" and the first 2 fields are blank.
+	local message_length=$(echo "${#failure_message} - 5" | bc)
+	failure_message=$(echo $failure_message | cut -c 1-$message_length)
+	
+	echo -e "    $failure_message"
+}
+
+# Output the failing test names
+function output_failing_tests_to_cli {
+	
+	local previous_line=""
+	local first_time_through=1
+
+	while read line; do
+		
+		if grep -q $failure_text <<<$line; then
+			
+			if [[ $first_time_through -eq 1 ]]; then
+
+				echo -e "$info Failing Tests: $txtrst"
+				first_time_through=0
+			fi
+
+			extract_test_name $previous_line
+			extract_failing_test_message $line
+		fi
+		previous_line=$line
+	done < $xmlfile
+
+	echo ""
+}
+
+# Output stats to Comand Line
+function output_stats_to_cli {
+	
+	echo ""
+	echo -e " Total Number of tests: $total_tests."
+	echo -e " Passing Tests: $passing_tests. Failing Tests: $failing_tests."
+	echo -e " Passing percentage: $pass_percentage%"
+	echo ""
+}
+
+# Output result to Command Line
+function output_result_to_cli {
+	
+	local number_of_passing_test_icons=$(echo "$pass_decimal * $display_bar_width" | bc)
+	local passing_icons=""
+	# Convert from float to integer
+	number_of_passing_test_icons=${number_of_passing_test_icons/.*}
+
+	if [ $number_of_passing_test_icons -gt 0 ]; then
+		for i in $(seq 1 $number_of_passing_test_icons);do
+			passing_icons="$passing_icons$pass+$txtrst"
+		done
+	fi
+	
+	local number_of_failing_test_icons=$(echo "$display_bar_width - $number_of_passing_test_icons" | bc)
+	local failing_icons=""
+	# Convert from float to integer
+	number_of_failing_test_icons=${number_of_failing_test_icons/.*}
+	
+	if [ $number_of_failing_test_icons -gt 0 ]; then
+		for i in $(seq 1 $number_of_failing_test_icons);do
+			failing_icons="$failing_icons$fail+$txtrst"
+		done
+	fi
+	
+	echo -e "\n$info Test Results:$txtrst\n"
+	echo -e " | $passing_icons$failing_icons |"
+}
+
+# Determine Result
+function determine_result {
+	
+	total_tests=$(cat $xmlfile | grep -c "$testcase_text")
+	failing_tests=$(cat $xmlfile | grep -c "$failure_text")
+	passing_tests=$(echo "$total_tests - $failing_tests" | bc)
+	
+	pass_decimal=$(echo "scale=2; $passing_tests / $total_tests" | bc)
+	pass_percentage=$(echo "$pass_decimal * 100" | bc)
+}
+
+# Evalutate Args
+function evaluate_args {
+	
+	if [[ $# != 1 ]]; then
+		err 'Please supply an argument.' '\nUsage is ./EvaluateJUnitXml file.xml\n'
+		exit $BAD_ARGS
+	fi
+	
+	if [[ ! -f $1 ]]; then
+		err 'Please supply a valid file' '\nUsage is ./EvaluateJUnitXml file.xml\n'
+		exit $BAD_ARGS
+	fi
+	
+	xmlfile=$1
+}
+
+# ----- Stagelist -----
+evaluate_args $@
+determine_result
+output_result_to_cli
+output_stats_to_cli
+output_failing_tests_to_cli
+
+exit $SUCCESS

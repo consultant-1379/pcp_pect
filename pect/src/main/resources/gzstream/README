@@ -1,0 +1,17 @@
+
+                              gzstream
+      C++ iostream classes wrapping the zlib compression library.
+===========================================================================
+TO USE THIS LIBRARY AS A SHARED OBJECT IN THE PACKET CAPTURE PRE-PROCESSOR
+
+1) Make using the "MakefileShared" file
+   
+   cd /opt/ericsson/pcp/pect/pect/gzstream
+   make -f MakefileShared
+
+2) Copy the the resulting libgzstream.so to the /opt/ericsson/lib directory  
+   
+   cd /opt/ericsson/pcp/pect/pect/gzstream
+   cp libgzstream.so /opt/ericsson/lib/
+
+See index.html for documentation.

@@ -1,0 +1,167 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# Packet Capture Pre-Processor : Add or Remove pcp-monitroing to/from crontab
+#
+# Usage:
+#
+#       ./pcp-cronUpdate {add_monitor|remove_monitor}
+#
+#       exit 0 for success
+#       exit 1 for failure
+#
+#       Author: efitleo
+#
+#       Date: 07/11/13
+#
+#       Description:
+#           Add or Remove pcp-monitroing to/from crontab
+#
+# ----------------------------------------------------------------------
+# Copyright (c) 1999 - 2013 AB Ericsson Oy  All rights reserved.
+# ----------------------------------------------------------------------
+# Version 1.0
+# Version 1.1  Fix for /dev/pts/3 permission denied, preventing restart
+# Version 1.2  Check for existance of cronfile before backup & remove 
+#              printing to screen
+# ----------------------------------------------------------------------
+
+
+# ----------------------------------------------------------------------
+# Set up variables and source appropriate properties files
+# ----------------------------------------------------------------------
+PCP_LOG_DIR=/var/log/ericsson/pcp
+PROBE_LOG_FILE=$PCP_LOG_DIR/pect.log
+PCP_HOME=/opt/ericsson/pcp/pect/pect
+PCP_TTY_TERMINAL=$PCP_HOME/pcp_tty
+CRONTAB_EXISTS_FILE="/var/tmp/cronexists.txt"
+# ----------------------------------------------------------------------
+#
+# CRONTAB_MIN 	Minute field 	0 to 59
+# CRONTAB_HOUR 	Hour field 	0 to 23
+# CRONTAB_DOM 	Day of Month 	1-31
+# CRONTAB_MON 	Month field 	1-12
+# CRONTAB_DOW 	Day Of Week 	0-6
+# CRONTAB_CMD   command to run
+# ----------------------------------------------------------------------
+
+# Run the pcp monitor on the 0th minute of every hour of every day...i.e. hourly
+PCP_RESTART="3"
+CRONTAB_MIN="0"
+# CRONTAB_MIN="*/15" # for test
+CRONTAB_HOUR="*"
+CRONTAB_DOM="*"
+CRONTAB_MON="*"
+CRONTAB_DOW="*"
+CRONTAB_CMD="$PCP_HOME/pcp-monitor restart $PCP_RESTART > /dev/null 2>&1"
+SED_STRING="/pcp-monitor/d"
+CRONTAB_BACKUP=/tmp/cron_backup
+now_datetime=$(date +%Y%m%d_%H%M)
+mkdir -p $CRONTAB_BACKUP
+CRONTAB_BACKUP_FILE=$CRONTAB_BACKUP/crontab_backup_$now_datetime
+CRONTAB_TMP_FILE=$CRONTAB_BACKUP/cron_job.tmp
+
+current_date=$(date +"%F %T")
+message_prefix="$current_date,000 INFO  [pcp.pect.Monitor]"
+broadcast_prefix="INFO  broadcast -"
+error_message_prefix="$current_date,000 ERROR [pcp.pect.Monitor]"
+
+# ----------------------------------------------------------------------
+# Functions for printing to the log.
+# ----------------------------------------------------------------------
+function message { 
+	echo "$message_prefix $@" >> $PROBE_LOG_FILE
+}
+function log {
+	echo "$message_prefix $@" >> $PROBE_LOG_FILE
+}
+
+# ----------------------------------------------------------------------
+# Functions for adding / removing to/from crontab
+# ----------------------------------------------------------------------
+
+function update_crontab {
+      
+      CRONTAB_UPDATE=$1
+      message "Packet Capture Pre-Processor Start/Stop Service: - Updating Crontab"
+
+      # Remove old backups, if they existed
+      if [ -d $CRONTAB_BACKUP ]; then
+          rm -rf $CRONTAB_BACKUP/*
+      fi
+      
+      # the &> redirect both std err and std output to file.
+      if [ $(crontab -l &> $CRONTAB_EXISTS_FILE ; cat $CRONTAB_EXISTS_FILE|grep -c "no crontab for pcpuser"; rm -f $CRONTAB_EXISTS_FILE) -eq 1 ]; then
+          message "No crontab file exists for pcpuser; Nothing to backup"
+      else
+        message "Backing up current Crontab to $CRONTAB_BACKUP_FILE"
+        crontab -l > $CRONTAB_BACKUP_FILE
+
+        crontab -l >$CRONTAB_TMP_FILE
+
+        # Remove current entries for pcp-monitoring from cron..Ensure to add just one entry
+        sed -e $SED_STRING $CRONTAB_TMP_FILE > $CRONTAB_TMP_FILE.1
+        rm -rf $CRONTAB_TMP_FILE
+      fi
+
+      if [ $CRONTAB_UPDATE -eq 1 ]; then
+          message "Adding PCP-Monitoring service to Crontab"
+          #message "$CRONTAB_MIN $CRONTAB_HOUR $CRONTAB_DOM $CRONTAB_MON $CRONTAB_DOW $CRONTAB_CMD"
+          echo "$CRONTAB_MIN $CRONTAB_HOUR $CRONTAB_DOM $CRONTAB_MON $CRONTAB_DOW $CRONTAB_CMD" >>$CRONTAB_TMP_FILE.1
+      else
+          message "Removing PCP-Monitoring service from Crontab"
+      fi
+      chmod 777 $CRONTAB_TMP_FILE.1
+      crontab $CRONTAB_TMP_FILE.1
+      rm -rf $CRONTAB_TMP_FILE.1
+      
+
+}
+
+
+# ----------------------------------------------------------------------
+# Ensure the script is run as pcpuser
+# ----------------------------------------------------------------------
+if [[ $EUID -ne 0 && ("$USER" -ne "pcpuser") ]]; then
+   echo "@error_message_prefix This script must be run as root or pcpuser, script aborted." 1>&2
+   exit 1
+fi
+
+# Check if the pcpuser exists and if not print an error message and exit gracefully
+if ! id -u pcpuser >/dev/null 2>&1; then
+    echo "$error_message_prefix User pcpuser does not exist, this service requires pcpuser account." 1>&2
+    exit 1
+fi
+
+
+if [ $EUID -eq 0 ]; then
+    # Rerun this script as pcpuser and exit with the appropriate message
+    su pcpuser -c "$0 $*"
+    exit $?
+fi
+
+# ----------------------------------------------------------------------
+# Main body of script,
+# ----------------------------------------------------------------------
+log "START - Running PCP-cronUpdate script."
+  
+case "$1" in
+    add_monitor)
+        update_crontab 1
+        ;;
+        
+    remove_monitor)
+        update_crontab 0
+    	;;
+    	      	      
+    *)
+        message "Usage: $0 {add_monitor|remove_monitor}"
+        log "FINISH - Running PCP-cronUpdate script."
+        log ""
+        exit 1
+        ;;
+        
+esac
+log "FINISH - Running PCP-cronUpdate script."
+log ""
+
+exit 0

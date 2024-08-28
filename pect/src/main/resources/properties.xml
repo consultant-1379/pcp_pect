@@ -1,0 +1,105 @@
+<?xml version="1.0"?>
+<properties>
+    <property>
+        <name>-interval</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>-input</name>
+        <value>nt3g1</value>
+    </property>
+    <property>
+        <name>-gtpc_cache_write_interval</name>
+        <value>86400</value><!-- In seconds (default is 24 hours) -->
+    </property>
+    <property>
+        <name>-instance_tag</name>
+        <value>0</value>
+    </property>
+    <property>
+        <name>-hash_size</name>
+        <value>10000000</value>
+    </property>
+    <property>
+        <name>-use_multiple_packetBuffers</name>
+        <!-- If use_multiple_packetBuffers = true,
+             then multiple packet buffers will be used,
+             each with one source and one sink only -->
+        <value>true</value>
+    </property>
+    <property>
+        <name>-packetBuffer_size</name>
+        <value>500000</value>
+    </property>
+    <property>
+        <name>-packetBuffer_gtpu_source_name</name>
+        <value>%%SOURCE_LIST%%</value>
+    </property>
+    <property>
+        <name>-packetBuffer_sink_count</name>
+        <!-- Set to zero to track the number of sources in the packetBuffer_gtpu_source_name
+             For IP filtering set to non zero value -->
+        <value>0</value>
+    </property>
+    <property>
+        <name>-packetBuffer_macOfKnownElement</name>
+        <value>%%MAC_ADDRESS_LIST%%</value>
+    </property>
+    <property>
+        <name>-outputLocation</name>
+        <value>/var/opt/ericsson/pcp/output</value>
+    </property>
+    <property>
+        <name>-tempOutputLocation</name>
+        <value>/var/opt/ericsson/pcp/temp</value>
+    </property>
+    <property>
+        <name>-reportOutputPeriod</name>
+        <value>1</value>
+    </property>
+    <property>
+        <name>-minFlowSize</name>
+        <value>100000</value> <!-- bytes -->
+    </property>
+    <property>
+         <name>-rmiLicenseFullPath</name>
+         <value>/opt/ericsson/pcp/pect/pect/pect-licensing.jar</value>
+	</property>
+    <property>
+         <name>-rmiLicenseServerHost</name>
+         <value>licenceserver</value>
+    </property>
+    <property>
+         <name>-rmiLicenseServerPort</name>
+         <value>1200</value>
+    </property>
+    <property>
+         <name>-licensingServiceName</name>
+         <value>LicensingCache</value>
+    </property>
+    <property>
+        <!-- Min number of packets below which packet loss will not be calculated -->
+        <!-- UE to Internet (Uplink), Internet to UE (Downlink)  -->
+        <name>-packetLossUserThreshold</name>
+        <value>50,100</value>
+    </property>
+    <property>
+        <!-- speedtest,weather,maps,news, advertisements,software_updates,photo_sharing -->
+        <!-- 0 will turn off the decoding of this custom protocol, 10 is the current max level -->
+        <name>-customProtocols_decodeLevelForHosts</name>
+        <value>1,2,4,1,3,3,2</value>
+    </property>
+    <property>
+        <name>-customProtocols_decodeUsingExtraHosts</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>-customProtocols_decodeUsingUserAgent</name>
+        <value>false</value>
+    </property>
+    <property>
+        <name>-customProtocols_decodeUsingURL</name>
+        <value>false</value>
+    </property>
+</properties>
+    

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+	<!-- The appenders -->
+	<appender name="fileWriterAppender" class="org.apache.log4j.RollingFileAppender">
+		<param name="file" value="/var/log/ericsson/pcp/file_writer.log" />
+		<param name="append" value="true" />
+		<param name="MaxFileSize" value="100MB" />
+		<param name="MaxBackupIndex" value="10" />
+		<layout class="org.apache.log4j.PatternLayout">
+		<param name="ConversionPattern" value="%d %-5p [%c] %m%n" />
+		</layout>
+	</appender>
+	<appender name="pectAppender" class="org.apache.log4j.RollingFileAppender">
+		<param name="file" value="/var/log/ericsson/pcp/pect.log" />
+		<param name="append" value="true" />
+		<param name="MaxFileSize" value="100MB" />
+		<param name="MaxBackupIndex" value="10" />
+		<layout class="org.apache.log4j.PatternLayout">
+		<param name="ConversionPattern" value="%d %-5p [%c] %m%n" />
+		</layout>
+	</appender>
+	
+	
+	<appender name="licenseAppender" class="org.apache.log4j.RollingFileAppender">
+		<param name="file" value="/var/log/ericsson/pcp/license.log" />
+		<param name="append" value="true" />
+		<param name="MaxFileSize" value="50MB" />
+		<param name="MaxBackupIndex" value="5" />
+		<layout class="org.apache.log4j.PatternLayout">
+			<param name="ConversionPattern" value="%d %-5p [%c] %m%n" />
+		</layout>
+	</appender>
+	
+	<!-- Output the log message to system console - for very serious incidents. -->
+	<appender name="consoleAppender" class="org.apache.log4j.ConsoleAppender">
+		<param name="Target" value="System.out" />
+		<layout class="org.apache.log4j.PatternLayout">
+		<param name="ConversionPattern" value="%-5p %c{1} - %m%n" />
+		</layout>
+	</appender>
+	<appender name="licenseAppender" class="org.apache.log4j.RollingFileAppender">
+		<param name="file" value="/var/log/ericsson/pcp/license.log" />
+		<param name="append" value="true" />
+		<param name="MaxFileSize" value="50MB" />
+		<param name="MaxBackupIndex" value="5" />
+		<layout class="org.apache.log4j.PatternLayout">
+		<param name="ConversionPattern" value="%d %-5p [%c] %m%n" />
+		</layout>
+	</appender>
+
+	<!-- Link the category to the correct appender -->
+	<!-- Levels/priorities are: all, trace, debug, info, warn, error, fatal -->
+	<category name="pect.file_writer" additivity="false">
+		<priority value="info" />
+		<appender-ref ref="fileWriterAppender" />
+	</category>
+	<category name="pect" additivity="false">
+		<priority value="info" />
+		<appender-ref ref="pectAppender" />
+	</category>
+	<category name="console">
+		<priority value="info" />
+		<appender-ref ref="consoleAppender" />
+	</category>
+	<category name="license" additivity="false" >
+		<priority value="info" />
+		<appender-ref ref="licenseAppender" /> 
+	</category>
+	<category name="broadcast"  additivity="false">
+		<priority value="info" />
+		<appender-ref ref="consoleAppender" />
+		<appender-ref ref="pectAppender" />
+		<appender-ref ref="licenseAppender" />		
+	</category>
+</log4j:configuration>

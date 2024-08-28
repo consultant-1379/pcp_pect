@@ -1,0 +1,157 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# Packet Capture Pre-Processor Cleanup
+#
+# Usage:
+#
+#       ./pcp_cleanup {<Parent Directory to clean>}
+#
+#       exit 0 for success
+#       exit 1 for failure to clean files
+#       exit 2 for failure to clean old directories
+#
+#       Author: efitleo
+#
+#       Date: 24/9/14
+#
+#       Description:
+#           This script removes empty directories under the supplied directory
+#           path and removes files older than 2 hours under the given parent directory
+#
+# ----------------------------------------------------------------------
+# Copyright (c) 1999 - 2013 AB Ericsson Oy  All rights reserved.
+# ----------------------------------------------------------------------
+# Version 1.0
+#
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Check Usage
+# ----------------------------------------------------------------------
+if [ $# -ne 2 ] ; then
+  echo "."
+  echo 1>&2 "$0: not enough arguments"
+  echo 1>&2 "usage: ./pcp-cleanup <directory path> <0/1>"
+  echo 1>&2 "         where /'directory path/' is the directory to cleanup"
+  echo 1>&2 "         and 0 = Log Errors only and 1 = Log Errors and Info"
+  echo "."
+  exit 3
+fi
+
+# ----------------------------------------------------------------------
+# Set up variables and source appropriate properties files
+# ----------------------------------------------------------------------
+PCP_LOG_DIR=/var/log/ericsson/pcp
+FILEWRITER_LOG_FILE=$PCP_LOG_DIR/file_writer.log
+PCP_HOME_DIR=/opt/ericsson/pcp/pect/pect
+
+current_date=$(date +"%F %T")
+message_prefix="$current_date,000 INFO  [pect.file_writer] PCP Cleanup:"
+console_prefix="INFO  broadcast - PCP Cleanup: "
+console_error_prefix="ERROR broadcast - PCP Cleanup: "
+error_message_prefix="$current_date,000 ERROR [pect.file_writer] PCP Cleanup:"
+
+TARGETDIR=$1
+# 0= LOG ERROR ONLY  1 = LOG ERROR AND INFO
+LOGMODE=$2
+TMPFILLE=/var/opt/ericsson/pcp/temp/cleanup_msg.txt
+CAPTOOLDIR=$TARGETDIR/captool/3g/
+STAPLEDIR=$TARGETDIR/staple/3g/tcpta-partial/
+PECTDIR=$TARGETDIR/pect/3g/
+
+# ----------------------------------------------------------------------
+# Functions for printing to the screen and to the log.
+# ----------------------------------------------------------------------
+function logError {
+	#echo "$console_error_prefix $@"
+	echo "$error_message_prefix $@" >> $FILEWRITER_LOG_FILE
+}
+
+function logStatus {
+	if [[ $LOGMODE -eq 1 ]] ; then
+		#echo "$console_prefix $@"
+		echo "$message_prefix $@" >> $FILEWRITER_LOG_FILE
+	fi
+}
+function logStatusMode_0 {
+	if [[ $LOGMODE -eq 0 ]] ; then
+		#echo "$console_prefix $@"
+		echo "$message_prefix $@" >> $FILEWRITER_LOG_FILE
+	fi
+}
+# ----------------------------------------------------------------------
+# Functions to remove empty directories and old files
+# ----------------------------------------------------------------------
+
+function removeDir {
+     dirToRemove=$1
+     logStatus "CLEANING EMPTY DIRECTORIES under $dirToRemove"
+     if ! find $dirToRemove ! -samefile $dirToRemove -type d -empty -delete >/dev/null 2>$TMPFILLE 
+     then
+         displayErrorMessage "CLEANING EMPTY DIRECTORIES Failure : " 
+         return 2
+     fi
+     return 0 
+}
+function displayErrorMessage {
+     if [ -f $TMPFILLE ]
+     then
+        logError $1 $(cat $TMPFILLE)
+        rm -f $TMPFILLE
+     fi
+}
+
+
+
+function cleanup {
+     dirToClean=$1
+     logStatus  "CLEANING FILES under $dirToClean"
+     if ! find $dirToClean -mmin +120 -type f -delete >/dev/null 2>$TMPFILLE 
+     then 
+         displayErrorMessage "CLEANING FILES Failure : "
+         return 1
+     fi
+     return 0
+}
+
+# Main
+if [[ $LOGMODE -eq 1 ]] ; then
+	logStatus "---------- Cleanup Started for $TARGETDIR ---------------"
+else 
+	logStatusMode_0 "Cleanup Started for $TARGETDIR"
+fi
+
+exitStatus=0
+cleanup $TARGETDIR
+
+if [ "$?" != "0" ]; then
+	exitStatus=1
+
+fi
+removeDir $CAPTOOLDIR
+if [ "$?" != "0" ]; then
+        exitStatus=2
+
+fi
+removeDir $STAPLEDIR
+if [ "$?" != "0" ]; then
+        exitStatus=2
+
+fi
+removeDir $PECTDIR
+if [ "$?" != "0" ]; then
+        exitStatus=2
+
+fi
+
+#check for zombie processses
+numZombies=$(ps aux | awk '{ print $8 " " $2 }' | grep -w Z -c)
+if [[ numZombies -gt 0 ]]; then
+   logError "$numZombies Zombie Processes Present"
+fi
+
+logStatus "---------- Cleanup Finished ($numZombies Zombies)------------------"
+exit $exitStatus
+
+
+

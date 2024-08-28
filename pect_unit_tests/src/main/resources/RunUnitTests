@@ -1,0 +1,380 @@
+#!/bin/bash
+# Author: elukpot
+#
+# NOTE: To add unit test source files to the build.
+#       You must add a "g++" block, the "echo" to the "fi" to the "Pect_Test_Build" function, place it above where the "ut_main.o" gets created.
+#       After you copy and paste the block, change ;
+#           * The echo to the English name of the test.
+#           * The name of the ".o" in the "rm" command, this removes old versions of the object.
+#           * The object name to "ut_<testname>", where <testname> is similar to the test's .cc file name.
+#           * The source file name, to be the one that you are adding.
+#           * The ".o" in the "if" statement to be the same as the ".o" you put in the "-o" bit.
+#      Add the name of the ".o" to the "Pect_Test_Link", above where "ut_main.o" gets linked.
+#      Make sure to add the " \" to the end of the line, or the test will not run.
+
+# The PECT variables refer to the main PECT project, the PECT_UT variables refer to the PECT Unit Test project.
+#HOME=/home/elukpot
+WORKSPACE=$1
+LOCAL=$2
+PECT_UT_TARGET_DIR=$WORKSPACE/pect_unit_tests/target
+PECT_UT_SRC_DIR=$WORKSPACE/pect_unit_tests/src/main/c++
+PECT_UT_INC_DIR=$WORKSPACE/pect_unit_tests/src/main/include
+PECT_UT_RES_DIR=$WORKSPACE/pect_unit_tests/src/main/resources
+PECT_UT_TEST_RES_DIR=$WORKSPACE/pect_unit_tests/src/test/resources
+CUTE_DIR=$PECT_UT_INC_DIR/cute
+PECT_SRC_DIR=$WORKSPACE/pect/src/main/c++
+PECT_INC_DIR=$WORKSPACE/pect/src/main/include
+PECT_SYS_INC_STRING="-I$WORKSPACE/pect/src/main/system -I$WORKSPACE/pect/src/main/system/ipoque -I$WORKSPACE/pect/src/main/system/linux"
+PECT_LIB_DIR=$WORKSPACE/pect/src/main/lib
+PECT_TARGET_DIR=$WORKSPACE/pect/target/nar/obj/amd64-Linux-gpp
+
+
+# This function compiles the source code into a .o object.
+function Pect_Test_Build {
+
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building Converter Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_converter.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_converter.o \
+		-c $PECT_UT_SRC_DIR/converter_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_converter.o ]]; then
+		return 1 # Unsuccess 
+	fi
+
+
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building ClientFinder Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_regex_client_finder.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_regex_client_finder.o \
+		-c $PECT_UT_SRC_DIR/regex_client_finder_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_regex_client_finder.o ]]; then
+		return 1 # Unsuccess 
+	fi
+	
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building File Writer Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_file_writer.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_file_writer.o \
+		-c $PECT_UT_SRC_DIR/file_writer_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_file_writer.o ]]; then
+		return 1 # Unsuccess 
+	fi
+	
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building Config Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_config.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_config.o \
+		-c $PECT_UT_SRC_DIR/config_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_config.o ]]; then
+		return 1 # Unsuccess 
+	fi
+
+       echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building GTPV1 IE Tests...$(tput sgr0)"
+        rm -f $PECT_UT_TARGET_DIR/ut_gtpv1_ie_test.o
+        g++ -Wno-deprecated -std=c++0x \
+                -o $PECT_UT_TARGET_DIR/ut_gtpv1_ie_test.o \
+                -c $PECT_UT_SRC_DIR/gtpv1_ie_test.cc \
+                -I"$CUTE_DIR" \
+                -I"$PECT_UT_INC_DIR" \
+                -I"$PECT_SRC_DIR" \
+                -I"$PECT_INC_DIR" \
+                $PECT_SYS_INC_STRING \
+                -L$PECT_LIB_DIR
+
+        if [[ ! -f $PECT_UT_TARGET_DIR/ut_gtpv1_ie_test.o ]]; then
+                return 1 # Unsuccess 
+        fi
+
+       echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building GTPV1 Packet Fields Tests...$(tput sgr0)"
+        rm -f $PECT_UT_TARGET_DIR/ut_gtpv1_packet_fields_test.o
+        g++ -Wno-deprecated -std=c++0x \
+                -o $PECT_UT_TARGET_DIR/ut_gtpv1_packet_fields_test.o \
+                -c $PECT_UT_SRC_DIR/gtpv1_packet_fields_test.cc \
+                -I"$CUTE_DIR" \
+                -I"$PECT_UT_INC_DIR" \
+                -I"$PECT_SRC_DIR" \
+                -I"$PECT_INC_DIR" \
+                $PECT_SYS_INC_STRING \
+                -L$PECT_LIB_DIR
+
+        if [[ ! -f $PECT_UT_TARGET_DIR/ut_gtpv1_packet_fields_test.o ]]; then
+                return 1 # Unsuccess 
+        fi
+
+       echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building GTPV1 Utils Tests...$(tput sgr0)"
+        rm -f $PECT_UT_TARGET_DIR/ut_gtpv1_utils_test.o
+        g++ -Wno-deprecated -std=c++0x \
+                -o $PECT_UT_TARGET_DIR/ut_gtpv1_utils_test.o \
+                -c $PECT_UT_SRC_DIR/gtpv1_utils_test.cc \
+                -I"$CUTE_DIR" \
+                -I"$PECT_UT_INC_DIR" \
+                -I"$PECT_SRC_DIR" \
+                -I"$PECT_INC_DIR" \
+                $PECT_SYS_INC_STRING \
+                -L$PECT_LIB_DIR
+
+        if [[ ! -f $PECT_UT_TARGET_DIR/ut_gtpv1_utils_test.o ]]; then
+                return 1 # Unsuccess 
+        fi
+
+       echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building GTPV2 IE Tests...$(tput sgr0)"
+        rm -f $PECT_UT_TARGET_DIR/ut_gtpv2_ie_test.o
+        g++ -Wno-deprecated -std=c++0x \
+                -o $PECT_UT_TARGET_DIR/ut_gtpv2_ie_test.o \
+                -c $PECT_UT_SRC_DIR/gtpv2_ie_test.cc \
+                -I"$CUTE_DIR" \
+                -I"$PECT_UT_INC_DIR" \
+                -I"$PECT_SRC_DIR" \
+                -I"$PECT_INC_DIR" \
+                $PECT_SYS_INC_STRING \
+                -L$PECT_LIB_DIR
+
+        if [[ ! -f $PECT_UT_TARGET_DIR/ut_gtpv2_ie_test.o ]]; then
+                return 1 # Unsuccess 
+        fi
+	
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building Arg Processor Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_arg_processor.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_arg_processor.o \
+		-c $PECT_UT_SRC_DIR/ArgProcessor_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_arg_processor.o ]]; then
+		return 1 # Unsuccess 
+	fi
+	
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building UE Map Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_ue_map.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_ue_map.o \
+		-c $PECT_UT_SRC_DIR/UE_map_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_UT_INC_DIR/ipoque" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_ue_map.o ]]; then
+		return 1 # Unsuccess 
+	fi
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building Classify Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_classify.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_classify.o \
+		-c $PECT_UT_SRC_DIR/Classify_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_UT_INC_DIR/ipoque" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_classify.o ]]; then
+		return 1 # Unsuccess 
+	fi	
+	echo -e "$(tput bold)$(tput setaf 4)    [INFO]    Building Main Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/ut_main.o
+	g++ -Wno-deprecated -std=c++0x \
+		-o $PECT_UT_TARGET_DIR/ut_main.o \
+		-c $PECT_UT_SRC_DIR/main_unit_test.cc \
+		-I"$CUTE_DIR" \
+		-I"$PECT_UT_INC_DIR" \
+		-I"$PECT_SRC_DIR" \
+		-I"$PECT_INC_DIR" \
+		$PECT_SYS_INC_STRING \
+		-L$PECT_LIB_DIR
+	
+	if [[ ! -f $PECT_UT_TARGET_DIR/ut_main.o ]]; then
+		return 1 # Unsuccess 
+	fi
+	
+	# All creation of unit tests are successful.
+	return 0
+}
+
+# This function links the libraries, pect objects and the .o into an executable.
+function Pect_Test_Link {
+	
+	echo -e "$(tput bold)$(tput setaf 5)    [INFO]    Linking Tests...$(tput sgr0)"
+	rm -f $PECT_UT_TARGET_DIR/pect_unit_tests
+	g++ -std=c++0x \
+		-o"$PECT_UT_TARGET_DIR/pect_unit_tests" \
+		$PECT_TARGET_DIR/ArgProcessor.o \
+		$PECT_TARGET_DIR/GTPv1_packetFields.o \
+		$PECT_TARGET_DIR/UE_map.o \
+		$PECT_TARGET_DIR/captool_file_writer.o \
+		$PECT_TARGET_DIR/classify.o \
+		$PECT_TARGET_DIR/config.o \
+		$PECT_TARGET_DIR/file_writer.o \
+		$PECT_TARGET_DIR/flow.o \
+		$PECT_TARGET_DIR/gtp_ie.o \
+		$PECT_TARGET_DIR/gtp_ie_gtpv2.o \
+		$PECT_TARGET_DIR/gtpv1_utils.o \
+		$PECT_TARGET_DIR/gtpv2_main.o \
+		$PECT_TARGET_DIR/logger.o \
+		$PECT_TARGET_DIR/mutex.o \
+		$PECT_TARGET_DIR/packet_utils.o \
+		$PECT_TARGET_DIR/packetbuffer.o \
+		$PECT_TARGET_DIR/pcpglue.o \
+		$PECT_TARGET_DIR/clientfinder.o \
+		$PECT_TARGET_DIR/converter.o \
+		$PECT_TARGET_DIR/converter_init.o \
+		$PECT_TARGET_DIR/converter_service_provider.o \
+		$PECT_TARGET_DIR/staple_file_writer.o \
+		$PECT_TARGET_DIR/pect_file_writer.o \
+		$PECT_UT_TARGET_DIR/ut_file_writer.o \
+		$PECT_UT_TARGET_DIR/ut_arg_processor.o \
+		$PECT_UT_TARGET_DIR/ut_ue_map.o \
+		$PECT_UT_TARGET_DIR/ut_classify.o \
+		$PECT_UT_TARGET_DIR/ut_main.o \
+		$PECT_UT_TARGET_DIR/ut_gtpv1_ie_test.o \
+		$PECT_UT_TARGET_DIR/ut_gtpv1_packet_fields_test.o \
+		$PECT_UT_TARGET_DIR/ut_gtpv1_utils_test.o \
+		$PECT_UT_TARGET_DIR/ut_gtpv2_ie_test.o \
+		$PECT_UT_TARGET_DIR/ut_config.o \
+		$PECT_UT_TARGET_DIR/ut_regex_client_finder.o \
+		$PECT_UT_TARGET_DIR/ut_converter.o \
+		-L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lntos \
+		-L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lntapi \
+		-L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lpthread \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lipoque_detection \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lmagicstring \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lgzstream \
+		-L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lpcap \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lgcc_eh \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lm \
+		-L$PECT_LIB_DIR \
+		-Bstatic \
+		-lz \
+		-L$PECT_LIB_DIR \
+                -Bstatic \
+                -llog4cxx \
+                -L$PECT_LIB_DIR \
+                -Bstatic \
+                -lapr-1 \
+                -L$PECT_LIB_DIR \
+                -Bstatic \
+                -laprutil-1 \
+                -L$PECT_LIB_DIR \
+                -Bstatic \
+                -lexpat \
+                -L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lc \
+		-L$PECT_LIB_DIR \
+		-Bdynamic \
+		-lstdc++ \
+		-fexceptions \
+		-lstdc++ 
+
+
+	
+	if [[ -f $PECT_UT_TARGET_DIR/pect_unit_tests ]]; then
+		return 0 # Success
+	fi
+	return 1 # Unsuccess
+	
+	# $PECT_TARGET_DIR/gtpv1.o 
+}
+
+# This function calls the other functions and executes the executable.
+# This function runs if the second parameter passed into this script is -l.
+function Pect_Test_Run {
+	DIR=`pwd`
+	echo -e "$(tput bold)$(tput setaf 6)    [INFO]    Running Tests...$(tput sgr0)"
+	mkdir $PECT_UT_TARGET_DIR/execute/
+	cp $PECT_UT_TARGET_DIR/pect_unit_tests $PECT_UT_TARGET_DIR/execute/
+	cp -Hr $PECT_UT_TEST_RES_DIR/* $PECT_UT_TARGET_DIR/execute/
+	cd $PECT_UT_TARGET_DIR/execute/
+	./pect_unit_tests
+	
+	mv -f test_results.xml $PECT_UT_TARGET_DIR
+	rm -f 454_06_8900-A20120323.0401-0402_pcpUnitTest_1332475320_000.log-1.gz
+	
+	$PECT_UT_RES_DIR/EvaluateJUnitXml $PECT_UT_TARGET_DIR/test_results.xml
+	cd $DIR
+}
+
+# This function evaluates the return codes.
+function EvalExit {
+	if [[ $1 != 0 ]];then
+		echo "$(tput bold)$(tput setaf 1)    [ERROR]   Exiting.$(tput sgr0)"
+		exit $1
+	fi
+}
+
+clear
+rm -rf $PECT_UT_TARGET_DIR
+mkdir -p $PECT_UT_TARGET_DIR
+
+Pect_Test_Build
+rc=$?
+EvalExit $rc
+
+Pect_Test_Link
+rc=$?
+EvalExit $rc
+
+case "$LOCAL" in
+	"-l")
+		Pect_Test_Run
+		;;
+esac
+
+# Exit
+exit 0; # Success

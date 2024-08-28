@@ -1,0 +1,194 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# Packet Capture Pre-Processor init.d script
+#
+# Usage:
+#
+#       ./pcp {start|stop|restart|reload|force-reload|status}
+#
+#       exit 0 for success
+#       exit 1 for failure
+#
+#       Author: Luke Potter - elukpot
+#
+#       Date: 22/08/13
+#
+#       Description:
+#           This script controls the pcp server.
+#           This script should be symlinked to /etc/init.d/pcp
+#
+# ----------------------------------------------------------------------
+# Copyright (c) 1999 - 2013 AB Ericsson Oy  All rights reserved.
+# ----------------------------------------------------------------------
+# Version 1.3
+# ----------------------------------------------------------------------
+
+#set -e
+### BEGIN INIT INFO
+# Provides:          pcp
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     
+# Default-Stop:      
+# X-Interactive:     true
+# Short-Description: Start/stop Packet Capture Pre-processor (PCP) system
+# chkconfig: 2356 20 80
+### END INIT INFO
+
+# ----------------------------------------------------------------------
+# Set up variables and source appropriate properties files
+# ----------------------------------------------------------------------
+PCP_LOG_DIR=/var/log/ericsson/pcp
+PROBE_LOG_FILE=$PCP_LOG_DIR/pect.out.log
+PCP_HOME=/opt/ericsson/pcp/pect/pect
+
+# Get the status of the processes that can trick this script.
+STATUS=""
+STATUS_GDB=""
+STATUS_YUM=""
+
+current_date=$(date +"%F %T")
+message_prefix="$current_date,000 INFO  [pcp.pect]"
+broadcast_prefix="INFO  broadcast -"
+error_message_prefix="$current_date,000 ERROR [pcp.pect]"
+
+# ----------------------------------------------------------------------
+# Functions for printing to the screen and to the log.
+# ----------------------------------------------------------------------
+function message {
+	echo "$broadcast_prefix $@"
+	echo "$message_prefix $@" >> $PROBE_LOG_FILE
+}
+function log {
+	echo "$message_prefix $@" >> $PROBE_LOG_FILE
+}
+
+# ----------------------------------------------------------------------
+# Function to populate or re-populate the status variables.
+# ----------------------------------------------------------------------
+function populateStatuses {
+	
+	STATUS=$(ps -ef | grep pcp-pec[t] | wc -l)
+	STATUS_GDB=$(ps -ef | grep gdb | grep pcp-pec[t] | wc -l)
+	STATUS_YUM=$(ps -ef | grep yum | grep pcp-pec[t] | wc -l)
+	uninteresingProcesses=$(echo "$STATUS_GDB + $STATUS_YUM" | bc)
+
+	# Check if the only pect process running is yum or gdb.
+	if [[ $STATUS -le $uninteresingProcesses ]]; then
+		STATUS=0
+	# Check is there's a pect process running beside the gdb and yum ones.
+	elif [[ $STATUS -gt $uninteresingProcesses ]]; then
+		STATUS=1
+	fi
+
+}
+
+# ----------------------------------------------------------------------
+# Functions to do the stopping and starting.
+# ----------------------------------------------------------------------
+function startPcp {
+	#EQEV-6455: Need to identify which terminal is starting PCP, so that pcp_monitor.sh can re-direct its output to there.
+   tty>$PCP_HOME/pcp_tty 
+   chmod 777 $PCP_HOME/pcp_tty
+
+	if [ $STATUS -eq 0 ]; then
+		message "Starting the Packet Capture Pre-Processor." 
+		$PCP_HOME/start_pcp.sh
+	else
+		message "A Packet Capture Pre-processor instance is already running."
+	fi
+	log "PCP Started."
+}
+function stopPcp {
+	
+	if [ $STATUS -eq 1 ]; then
+		$PCP_HOME/stop_pcp.sh
+	else
+		message "Packet Capture Pre-processor is already stopped."
+	fi
+	log "PCP Stopped."
+}
+function statusPcp {
+	
+	message "Getting status of the Packet Capture Pre-Processor."
+	if [ $STATUS -eq 0 ]; then
+		message "Packet Capture Pre-processor is stopped."
+	else
+		message "A Packet Capture Pre-processor instance is running."
+	fi
+	log "PCP Status retrieved."
+}
+
+# ----------------------------------------------------------------------
+# Ensure the script is run as pcpuser
+# ----------------------------------------------------------------------
+if [[ $EUID -ne 0 && ("$USER" -ne "pcpuser") ]]; then
+   echo "@error_message_prefix This script must be run as root or pcpuser, script aborted." 1>&2
+   exit 1
+fi
+
+# Check if the pcpuser exists and if not print an error message and exit gracefully
+if ! id -u pcpuser >/dev/null 2>&1; then
+    echo "$error_message_prefix User pcpuser does not exist, this service requires pcpuser account." 1>&2
+    exit 1
+fi
+
+
+if [ $EUID -eq 0 ]; then
+    # Rerun this script as pcpuser and exit with the appropriate message
+    su pcpuser -c "$0 $*"
+    exit $?
+fi
+
+# ----------------------------------------------------------------------
+# Main body of script,
+# ----------------------------------------------------------------------
+log "START  - Running PCP-Pect script."
+
+
+populateStatuses
+case "$1" in
+    start)
+        startPcp
+        ;;
+        
+    stop)
+        stopPcp
+    	;;
+    	
+    restart)
+        message "Restarting the Packet Capture Pre-Processor."
+        stopPcp
+        populateStatuses
+        startPcp
+        log "PCP Restarted."
+    	;;
+    	
+    reload)
+        message "Reload of Packet Capture Pre-Processor not supported."
+    	;;
+    	
+    force-reload)
+        message "Force Reloading the Packet Capture Pre-Processor."
+        stopPcp
+        populateStatuses
+        startPcp
+        log "PCP Force-Reloaded."
+        ;;
+        
+    status)
+        statusPcp
+    	;;
+    	      
+    *)
+        message "Usage: $0 {start|stop|restart|reload|force-reload|status}"
+        log "FINISH - Running PCP-Pect script."
+        log ""
+        exit 1
+        ;;
+        
+esac
+log "FINISH - Running PCP-Pect script."
+log ""
+
+exit 0

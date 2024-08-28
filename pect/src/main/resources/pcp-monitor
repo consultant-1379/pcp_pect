@@ -1,0 +1,329 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# Packet Capture Pre-Processor monitor and restart
+#
+# Usage:
+#
+#       ./pcp_monitor {restart <max number of restart attempts>}
+#
+#       exit 0 for success
+#       exit 1 for failure
+#
+#       Author: efitleo
+#
+#       Date: 18/10/13
+#
+#       Description:
+#           This script monitors pcp. If the process crashes,
+#           and the restart flag is supplied, the attempt to restart it.
+#
+# ----------------------------------------------------------------------
+# Copyright (c) 1999 - 2013 AB Ericsson Oy  All rights reserved.
+# ----------------------------------------------------------------------
+# Version 1.0
+#
+# Version 1.1  Fix for /dev/pts/3 permission denied, preventing restart
+#
+# Version 1.2  Added check for PCP HUNG
+#
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Set up variables and source appropriate properties files
+# ----------------------------------------------------------------------
+PCP_LOG_DIR=/var/log/ericsson/pcp
+PECT_OUT_LOG_FILE=$PCP_LOG_DIR/pect.out.log
+PECT_LOG_FILE=$PCP_LOG_DIR/pect.log
+PCP_HOME=/opt/ericsson/pcp/pect/pect
+PCP_TTY_TERMINAL=$PCP_HOME/pcp_tty
+MAX_RESTARTS=5
+STATUS=0
+HUNG=0
+DEFAULT_PCP_PROMPT="[pcpuser]$"
+PCP_PROMPT_FILE=$PCP_HOME/pcp_prompt
+
+PCP_HOME_DIR=/opt/ericsson/pcp/pect/pect
+PCP_OUTPUT_DIR=$(cat $PCP_HOME_DIR/properties.xml|grep -A 1 "\-outputLocation"|grep value|awk -F'[<>]' '{print $3}')
+
+
+current_date=$(date +"%F %T")
+message_prefix="$current_date,000 INFO  [pcp.pect.Monitor]"
+console_prefix="INFO  broadcast - PCP Monitor: "
+error_message_prefix="$current_date,000 ERROR [pcp.pect.Monitor]"
+
+# ----------------------------------------------------------------------
+# Functions for printing to the screen and to the log.
+# ----------------------------------------------------------------------
+function logStartStop {
+	echo "$message_prefix $@" >> $PECT_OUT_LOG_FILE
+}
+function logError {
+	echo "$console_prefix $@"
+	echo "$error_message_prefix $@" >> $PECT_LOG_FILE
+}
+
+function logStatus {
+	echo "$console_prefix $@"
+	echo "$message_prefix $@" >> $PECT_LOG_FILE
+}
+# ----------------------------------------------------------------------
+# Function to populate or re-populate the status variables.
+# ----------------------------------------------------------------------
+function get_pcp_status {
+	
+	STATUS=$(ps -ef | grep pcp-pec[t] |grep -c properties)
+	logStatus "Getting the STATUS of the PCP [$STATUS]"
+	
+	if [ $STATUS -eq 1 ]; then
+    logStatus "STATUS: A Packet Capture Pre-processor instance is Running"
+    STATUS=1
+	elif [ $STATUS -gt 1 ]; then
+    logError "STATUS: $STATUS Packet Capture Pre-processor instances are Running"
+    STATUS=2
+  elif [ $STATUS -lt 1 ]; then
+    logError "STATUS: The Packet Capture Pre-processor has stopped"
+    STATUS=0
+	fi
+	
+}
+
+# ----------------------------------------------------------------------
+# Function to Check if PCP is Hung (not producing an output).
+# ----------------------------------------------------------------------
+function check_pcp_hung {
+
+	HUNG=$( find $PCP_OUTPUT_DIR/captool/ -mmin -5 |grep -c "A201")
+	logStatus "Checking if PCP is HUNG [$HUNG] ; Using output directory $PCP_OUTPUT_DIR"
+	
+	if [ $HUNG -eq 0 ]; then
+    logError "STATUS: HUNG: A Packet Capture Pre-processor is HUNG (No files out in last 5 minutes)"
+    HUNG=0
+  else 
+    logStatus "STATUS: NOT HUNG: The Packet Capture Pre-processor is producing output files"
+    HUNG=1
+	fi
+}
+
+# ----------------------------------------------------------------------
+# Functions to do the stopping and starting.
+# ----------------------------------------------------------------------
+# This function will start and stop the pcp in its original terminal
+function start_stop_pcp {
+  if [ -s $PCP_PROMPT_FILE ]; then
+      PCP_PROMPT=$(cat $PCP_PROMPT_FILE)
+  else
+      PCP_PROMPT=$DEFAULT_PCP_PROMPT
+  fi
+  
+  USING_TTY=0
+  
+  if [ -s $PCP_TTY_TERMINAL ]; then
+      if [ -e $(cat $PCP_TTY_TERMINAL) ]; then
+              TTY_OWNER=$(ls -l $(cat $PCP_TTY_TERMINAL)|awk '{print $3}');
+              if [[ "$USER" == "$TTY_OWNER" ]]; then
+                  echo " " >$(cat $PCP_TTY_TERMINAL) 2>&1
+                  echo "$console_prefix Packet Capture Pre-processor will be $2ED" >$(cat $PCP_TTY_TERMINAL) 2>&1
+                  /bin/bash $PCP_HOME/$1 >$(cat $PCP_TTY_TERMINAL) 2>&1
+                  USING_TTY=1
+              else
+                  /bin/bash $PCP_HOME/$1 >/dev/null 2>&1
+              fi
+      else
+              /bin/bash $PCP_HOME/$1 >/dev/null 2>&1
+      fi
+  else
+          /bin/bash $PCP_HOME/$1 >/dev/null 2>&1
+  fi
+  
+  # Start_pcp already delays 20 seconds
+  # Stop_pcp already has a PCP_PROMPT
+  if [[ "$2" == "STOP" ]]; then
+    logStatus "Sleeping to allow PCP to $2 "
+    sleep 20
+  else # its a start  
+    if [ $USING_TTY -eq 1 ]; then
+        echo -n "$PCP_PROMPT ">$(cat $PCP_TTY_TERMINAL) 2>&1
+    fi
+  fi
+
+
+}
+function startPcp {
+	
+	if [ $STATUS -eq 0 ]; then
+	  logStartStop "START  - Running PCP-Monitor script."
+		logStartStop "STARTING the Packet Capture Pre-Processor."		
+		logStatus "Attempting to START the Packet Capture Pre-Processor."
+    start_stop_pcp "start_pcp.sh" "START"
+		logStartStop "FINISHED  - Running PCP-Monitor script."
+	else
+		logStatus "A Packet Capture Pre-processor instance is already running."
+	fi
+}
+function stopPcp {
+	if [ $STATUS -eq 2 ]; then
+	  logStartStop "START  - Running PCP-Monitor script."
+	  logStartStop "STOPPING the Packet Capture Pre-Processor."
+		logStatus "Attempting to STOP the Packet Capture Pre-Processor." 
+    start_stop_pcp "stop_pcp.sh" "STOP"
+    logStartStop "FINISHED  - Running PCP-Monitor script."
+	else
+		logStatus "Packet Capture Pre-processor is already stopped."
+	fi
+	
+}
+function restartPcp {	
+  restart_success=1
+  if [ $STATUS -eq 2 ]; then
+      for j in $(seq 1 $MAX_RESTARTS)
+      do
+          logError "Too many PCP's running.. STOPPING [$j/$MAX_RESTARTS]"
+          stopPcp
+          get_pcp_status
+          if [ $STATUS -eq 0 ]; then
+            logStatus "PCP has stopped..attempting RESTART [$1/$MAX_RESTARTS]"
+            startPcp
+            restart_success=0
+            break
+          fi
+      done
+      if [ $restart_success -eq 1 ]; then
+        logError "Unable to stop  the PCP after $j/$MAX_RESTARTS attempts"    
+      fi      
+  else
+	  	logError "Unable to REstart PCP when more then one PCP is Running ; Reason unknown"
+	fi
+              
+}
+
+function HUNG_restartPCP {	
+    logStatus "PCP HUNG..Attempt Stopping (Normal method)"
+    start_stop_pcp "stop_pcp.sh" "STOP"
+    get_pcp_status
+    if [ $STATUS -gt 0 ]; then
+        logStatus "PCP HUNG..Attempt Stopping (Kill method)"
+        # Just to make sure
+        ps -ef |grep pcp-pec[t] | grep -v grep |grep properties|awk '{print $2}'|xargs kill -9
+    fi
+
+    get_pcp_status
+    if [ $STATUS -eq 0 ]; then
+        logStatus "PCP HUNG: PCP has stopped.. MOVING LOGS"
+        
+        server=$(hostname);
+        theDate=$(date +"%Y%m%d%H%M");
+        OLD_DIR=$(echo "/var/log/ericsson/pcp/old__"$server"_"$theDate)
+        logStatus "PCP HUNG:  Copying log files to $OLD_DIR"
+        mkdir $OLD_DIR
+        cp -p /var/log/ericsson/pcp/*.log.* $OLD_DIR > /dev/null 2>&1
+        cp -p /var/log/ericsson/pcp/*.log $OLD_DIR  > /dev/null 2>&1
+
+        logStatus "PCP HUNG: PCP has stopped.. Restarting"
+        startPcp
+        
+        
+    else
+       logError "PCP HUNG: Unable to REstart PCP when PCP has hung; Reason unknown"
+    fi
+              
+}
+
+
+# ----------------------------------------------------------------------
+# Ensure the script is run as pcpuser
+# ----------------------------------------------------------------------
+if [[ $EUID -ne 0 && ("$USER" -ne "pcpuser") ]]; then
+   logError "PCP Monitor script must be run as root or pcpuser, script aborted." 1>&2
+   exit 1
+fi
+
+# Check if the pcpuser exists and if not print an error message and exit gracefully
+if ! id -u pcpuser >/dev/null 2>&1; then
+    logError "User pcpuser does not exist, PCP Monitor service requires pcpuser account." 1>&2
+    exit 1
+fi
+
+# If this is run as root
+if [ $EUID -eq 0 ]; then
+    logStatus "Rerunning this script as pcpuser"
+    su pcpuser -c "$0 $*"
+    exit $?
+fi
+
+# ----------------------------------------------------------------------
+# Main body of script,
+# ----------------------------------------------------------------------
+logStatus "PCP Monitoring STARTED"
+
+if [ ! $# == 2 ]
+then
+    logStatus "Usage: $0 restart <max number of restart attempts>"
+    logStatus "PCP Monitoring FINISHED"
+    logStatus ""
+    exit 1
+fi
+
+ACTION=$1
+
+if [ $2 -gt 0 ]
+then
+    MAX_RESTARTS=$(($2))
+fi
+
+get_pcp_status
+
+case "$ACTION" in   	
+    restart)
+        monitor_success=2
+        for i in $(seq 1 $MAX_RESTARTS)
+        do
+          if [ $STATUS -eq 1 ]; then
+              check_pcp_hung
+              if [ $HUNG -eq 0 ]; then
+                HUNG_restartPCP
+              else
+                logStatus "No Action Required"
+              fi
+              monitor_success=0
+              break;
+          elif [ $STATUS -eq 2 ]; then
+              restartPcp $i
+          elif [ $STATUS -eq 0 ]; then
+              logError "Abnormal TERMINATION of the PCP..attempting RESTART [$i/$MAX_RESTARTS]"
+              startPcp
+          fi
+          get_pcp_status
+
+          if [ $STATUS -eq 1 ]; then
+            monitor_success=1
+            break
+          fi
+          logStatus "Sleeping 10 Seconds between restarts "
+          sleep 10
+        done
+        
+        if [ $monitor_success -eq 2 ]; then
+          logError "Unable to Restart  the PCP after $i/$MAX_RESTARTS attempts"    
+        elif [ $monitor_success -eq 1 ]; then
+          logStatus "PCP Restarted."             
+        else
+          logStatus "PCP STATUS OK."
+        fi
+    ;;
+    	
+    *)
+        logStatus "Usage: $0 {restart <max number of restart attempts>}"
+        logStatus "PCP Monitoring FINISHED"
+        logStatus ""
+        exit 1
+    ;;
+        
+esac
+
+
+
+
+logStatus "PCP Monitoring FINISHED"
+logStatus ""
+
+exit 0

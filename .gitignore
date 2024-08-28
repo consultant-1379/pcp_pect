@@ -1,0 +1,14 @@
+*.o
+*~
+*.cproject
+*.settings
+*.project
+*.classpath
+*.externalToolBuilders/
+
+
+target/
+local-properties.xml
+test_results.xml
+pcp-pect
+pect/log_config.xml*

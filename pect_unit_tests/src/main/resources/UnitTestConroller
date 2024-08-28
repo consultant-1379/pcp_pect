@@ -1,0 +1,62 @@
+#!/bin/bash
+# Author: elukpot
+
+
+# ----------------------------------------------------------------------
+# Variables
+workspace=$1
+ScriptsLocation=$workspace/pect_unit_tests/src/main/resources
+UnitTestExe=$workspace/pect_unit_tests/target/pect_unit_tests
+TestResources=$workspace/pect_unit_tests/src/test/resources/*
+FilesToCopyToRemote="$TestResources $UnitTestExe"
+UnitTestResults=test_results.xml
+Remote=root@atclvm515.athtem.eei.ericsson.se
+Remote_Pass=shroot
+Remote_Dir=/tmp/
+LogFileNames=*.log
+FilesToCollectFromRemote="$Remote_Dir$UnitTestResults $Remote_Dir$LogFileNames"
+
+# ----------------------------------------------------------------------
+# Functions
+
+# Run the Unit tests to get the executable.
+function BuildAndLinkUnitTests {
+	echo "    [INFO]    Creating the executable on Jenkins."
+	$ScriptsLocation/RunUnitTests $workspace "-j"
+}
+
+# SCP RunUnitTest script to 515.
+function ScpScriptToRemote {
+	echo "    [INFO]    SCPing executable to remote machine."
+	expect $ScriptsLocation/ScpFileOver.exp "$FilesToCopyToRemote" $Remote $Remote_Dir $Remote_Pass
+}
+
+# SSH to 515 and Run RunUnitTest script.
+function SshToRemoteRunUnitTests {
+	echo "    [INFO]    Running executable on remote machine."
+	expect $ScriptsLocation/RunUnitTestsOnRemote.exp $Remote $Remote_Pass
+}
+
+# SCP test_results.xml back to Jenkins machine.
+function ScpXmlBackToJenkins {
+	echo "    [INFO]    SCPing unit test results back from remote machine."
+	expect -d $ScriptsLocation/ScpFileBack.exp "$FilesToCollectFromRemote" $Remote $Remote_Pass
+	mv $UnitTestResults $workspace/pect_unit_tests/target/
+	mv $LogFileNames $workspace/pect_unit_tests/target/
+}
+
+# Clean up the remote machine, so future tests will not be contaminated.
+function CleanUpRemote {
+	echo "    [INFO]    Cleaning the Remote Machine."
+	expect $ScriptsLocation/CleanUpRemoteMachine.exp $Remote $Remote_Pass
+}
+
+# ----------------------------------------------------------------------
+# Stagelist
+BuildAndLinkUnitTests
+ScpScriptToRemote
+SshToRemoteRunUnitTests
+ScpXmlBackToJenkins
+CleanUpRemote
+
+exit 0 # Success
